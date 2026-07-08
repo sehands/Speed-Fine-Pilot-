@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="SpeedFine" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <title>SpeedFine Pilot</title>
+  <style>
+    :root { --bg:#0b1020; --card:#141b2f; --muted:#9aa7bd; --text:#f8fafc; --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444; --line:#25314d; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; background:linear-gradient(160deg,#070b16,#101a33); color:var(--text); min-height:100vh; padding:env(safe-area-inset-top) 16px env(safe-area-inset-bottom); }
+    main { max-width:560px; margin:0 auto; padding:20px 0 28px; }
+    h1 { font-size:28px; margin:10px 0 4px; letter-spacing:-.03em; }
+    .sub { color:var(--muted); margin:0 0 18px; font-size:14px; }
+    .card { background:rgba(20,27,47,.92); border:1px solid var(--line); border-radius:22px; padding:18px; margin:12px 0; box-shadow:0 16px 40px rgba(0,0,0,.24); }
+    .speed { font-size:72px; font-weight:800; line-height:1; letter-spacing:-.06em; text-align:center; margin-top:10px; }
+    .unit { text-align:center; color:var(--muted); margin-top:4px; }
+    .status { border-radius:18px; padding:14px; text-align:center; font-weight:750; margin-top:16px; font-size:18px; }
+    .ok { background:rgba(34,197,94,.16); color:#86efac; }
+    .warn { background:rgba(245,158,11,.16); color:#fcd34d; }
+    .bad { background:rgba(239,68,68,.18); color:#fca5a5; }
+    label { color:var(--muted); font-size:13px; display:block; margin-bottom:8px; }
+    input, select { width:100%; border:1px solid var(--line); background:#0b1224; color:var(--text); border-radius:14px; padding:14px; font-size:18px; }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    button { width:100%; border:0; border-radius:16px; padding:16px; font-weight:800; font-size:17px; color:#06111f; background:#e2e8f0; margin-top:12px; }
+    button.primary { background:#38bdf8; }
+    button.stop { background:#fb7185; color:#22040a; }
+    .facts { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px; }
+    .fact { background:#0b1224; border:1px solid var(--line); border-radius:16px; padding:14px; }
+    .fact b { display:block; font-size:22px; margin-top:4px; }
+    .small { font-size:12px; color:var(--muted); line-height:1.35; }
+    .pillrow { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+    .pill { border:1px solid var(--line); background:#0b1224; color:var(--text); border-radius:999px; padding:8px 11px; font-size:14px; }
+    footer { color:var(--muted); font-size:12px; line-height:1.4; padding:6px 4px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>SpeedFine Pilot</h1>
+    <p class="sub">Kostenloser MVP: GPS-Speed + manuelles Tempolimit + lokaler Bußgeldcheck.</p>
+
+    <section class="card">
+      <div class="speed" id="speed">--</div>
+      <div class="unit">km/h aktuelle GPS-Geschwindigkeit</div>
+      <div id="status" class="status ok">Bereit</div>
+      <button id="start" class="primary">GPS starten</button>
+      <button id="stop" class="stop" style="display:none">GPS stoppen</button>
+      <p class="small" id="gpsInfo">Standortfreigabe erforderlich. Funktioniert nur über HTTPS oder lokal auf dem iPhone.</p>
+    </section>
+
+    <section class="card">
+      <div class="grid">
+        <div>
+          <label for="limit">Erlaubtes Tempo</label>
+          <input id="limit" type="number" min="5" max="250" value="50" />
+        </div>
+        <div>
+          <label for="zone">Bereich</label>
+          <select id="zone">
+            <option value="inner">Innerorts</option>
+            <option value="outer">Außerorts</option>
+          </select>
+        </div>
+      </div>
+      <div class="pillrow">
+        <button class="pill" data-limit="30">30</button><button class="pill" data-limit="50">50</button><button class="pill" data-limit="70">70</button><button class="pill" data-limit="100">100</button><button class="pill" data-limit="130">130</button>
+      </div>
+      <div class="facts">
+        <div class="fact"><span class="small">Überschreitung</span><b id="over">0 km/h</b></div>
+        <div class="fact"><span class="small">Bußgeld</span><b id="fine">0 €</b></div>
+        <div class="fact"><span class="small">Punkte</span><b id="points">0</b></div>
+        <div class="fact"><span class="small">Fahrverbot</span><b id="ban">Nein</b></div>
+      </div>
+    </section>
+
+    <footer>
+      Hinweis: Keine Rechtsberatung. GPS und manuelle Limits können ungenau sein. Tatsächliche Verfahren berücksichtigen Messverfahren, Toleranzen, Fahrzeugart, Vorsatz, Wiederholung und konkrete Beschilderung.
+    </footer>
+  </main>
+
+<script>
+let watchId = null;
+let currentSpeed = 0;
+const $ = id => document.getElementById(id);
+
+const fines = {
+  inner: [
+    [10,30,0,false],[15,50,0,false],[20,70,0,false],[25,115,1,false],[30,180,1,false],
+    [40,260,2,true],[50,400,2,true],[60,560,2,true],[70,700,2,true],[999,800,2,true]
+  ],
+  outer: [
+    [10,20,0,false],[15,40,0,false],[20,60,0,false],[25,100,1,false],[30,150,1,false],
+    [40,200,1,false],[50,320,2,true],[60,480,2,true],[70,600,2,true],[999,700,2,true]
+  ]
+};
+
+function calcFine(over, zone) {
+  if (over <= 0) return { fine:0, points:0, ban:false };
+  const row = fines[zone].find(r => over <= r[0]);
+  return { fine: row[1], points: row[2], ban: row[3] };
+}
+
+function update() {
+  const limit = Number($('limit').value || 0);
+  const zone = $('zone').value;
+  const over = Math.max(0, Math.round(currentSpeed - limit));
+  const res = calcFine(over, zone);
+  $('speed').textContent = currentSpeed ? Math.round(currentSpeed) : '--';
+  $('over').textContent = over + ' km/h';
+  $('fine').textContent = res.fine + ' €';
+  $('points').textContent = String(res.points);
+  $('ban').textContent = res.ban ? 'Ja' : 'Nein';
+
+  const s = $('status');
+  s.className = 'status ' + (over === 0 ? 'ok' : over <= 10 ? 'warn' : 'bad');
+  s.textContent = over === 0 ? 'Im Limit' : '+' + over + ' km/h · möglich: ' + res.fine + ' €, ' + res.points + ' Punkt(e)' + (res.ban ? ', Fahrverbot' : '');
+}
+
+$('start').onclick = () => {
+  if (!navigator.geolocation) { $('gpsInfo').textContent = 'Geolocation wird von diesem Browser nicht unterstützt.'; return; }
+  watchId = navigator.geolocation.watchPosition(pos => {
+    const mps = pos.coords.speed;
+    currentSpeed = mps && mps > 0 ? mps * 3.6 : 0;
+    $('gpsInfo').textContent = 'GPS aktiv · Genauigkeit ca. ' + Math.round(pos.coords.accuracy) + ' m';
+    update();
+  }, err => {
+    $('gpsInfo').textContent = 'GPS-Fehler: ' + err.message;
+  }, { enableHighAccuracy:true, maximumAge:500, timeout:10000 });
+  $('start').style.display = 'none'; $('stop').style.display = 'block';
+};
+
+$('stop').onclick = () => {
+  if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+  watchId = null; currentSpeed = 0; update();
+  $('gpsInfo').textContent = 'GPS gestoppt.';
+  $('start').style.display = 'block'; $('stop').style.display = 'none';
+};
+
+$('limit').oninput = update; $('zone').onchange = update;
+document.querySelectorAll('[data-limit]').forEach(b => b.onclick = () => { $('limit').value = b.dataset.limit; update(); });
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+update();
+</script>
+</body>
+</html>
