@@ -1,12 +1,15 @@
 {
-  "name": "SpeedFine Pilot",
-  "short_name": "SpeedFine",
-  "start_url": "./index.html",
+  "name": "SpeedFinePilot Auto",
+  "short_name": "SpeedPilot",
+  "description": "GPS-Geschwindigkeit, automatische OSM-Tempolimiterkennung und potenzielle Bußgeldanzeige.",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#0b1020",
-  "theme_color": "#0f172a",
+  "orientation": "portrait",
+  "background_color": "#07111f",
+  "theme_color": "#07111f",
   "icons": [
-    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+    {"src":"icon-192.png","sizes":"192x192","type":"image/png","purpose":"any maskable"},
+    {"src":"icon-512.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}
   ]
 }
