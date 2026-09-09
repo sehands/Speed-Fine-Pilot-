@@ -1,5 +1,5 @@
-const CACHE = 'speedfinepilot-auto-v2';
-const CORE = ['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
+const CACHE = 'speedfinepilot-auto-v3';
+const CORE = ['./','./index.html','./styles.css','./logic.js','./app.js','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(CORE)).then(() => self.skipWaiting()));

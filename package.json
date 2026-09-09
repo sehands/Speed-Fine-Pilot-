@@ -1,0 +1,8 @@
+{
+  "name": "speed-fine-pilot",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  }
+}
